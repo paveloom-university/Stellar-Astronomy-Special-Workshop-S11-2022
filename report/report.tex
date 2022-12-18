@@ -1,0 +1,204 @@
+\documentclass[a4paper, oneside]{article}
+\special{pdf:minorversion 6}
+
+\usepackage{geometry}
+\geometry{
+  textwidth=358.0pt,
+  textheight=608.0pt,
+  top=90pt,
+  left=113pt,
+}
+
+\usepackage[english, russian]{babel}
+
+\usepackage{fontspec}
+\setmainfont[
+  Ligatures=TeX,
+  Extension=.otf,
+  BoldFont=cmunbx,
+  ItalicFont=cmunti,
+  BoldItalicFont=cmunbi,
+]{cmunrm}
+\usepackage{unicode-math}
+
+\usepackage[bookmarks=false]{hyperref}
+\hypersetup{pdfstartview={FitH},
+            colorlinks=true,
+            linkcolor=magenta,
+            pdfauthor={Павел Соболев}}
+
+\usepackage[table]{xcolor}
+\usepackage{booktabs}
+\usepackage{caption}
+
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\graphicspath{ {../plots/} }
+\DeclareGraphicsExtensions{.pdf, .png}
+
+\usepackage{sectsty}
+\sectionfont{\centering}
+\subsubsectionfont{\centering\normalfont\itshape}
+
+\newcommand{\su}{\vspace{-0.5em}}
+\newcommand{\npar}{\par\vspace{\baselineskip}}
+
+\setlength{\parindent}{0pt}
+
+\DeclareMathOperator{\atantwo}{atan2}
+
+\usepackage{diagbox}
+
+\newlength{\imagewidth}
+\newlength{\imageheight}
+\newcommand{\subgraphics}[1]{
+\settowidth{\imagewidth}{\includegraphics[height=\imageheight]{#1}}%
+\begin{subfigure}{\imagewidth}%
+    \includegraphics[height=\imageheight]{#1}%
+\end{subfigure}%
+}
+
+\hypersetup{pdftitle={Специальный практикум (11-ый семестр, 2022)}}
+
+\begin{document}
+
+\subsubsection*{Специальный практикум (11-ый семестр, 2022)}
+\section*{Метод взвешенной ортогональной регрессии}
+\subsubsection*{Руководитель: И. И. Никифоров \hspace{2em} Выполнил: П. Л. Соболев}
+
+\vspace{3em}
+
+\subsection*{Задачи}
+
+\begin{itemize}
+  \setlength\itemsep{-0.1em}
+  \item Для приведенных данных получить параметры линейной модели \\ $ y = a + b x $, минимизируя сумму взвешенных квадратов расстояний
+  \begin{itemize}
+    \item с помощью метода Йорка;
+    \item путем численной минимизации целевой функции.
+  \end{itemize}
+\end{itemize}
+
+\subsection*{Теория}
+
+Данные:
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{c|cccccccccc}
+    \toprule
+    $ X_i $ & 0 & 0.9 & 1.8 & 2.6 & 3.3 & 4.4 & 5.2 & 6.1 & 6.5 & 7.4 \\
+    $ \omega(X_i) $ & 1000 & 1000 & 500 & 800 & 200 & 80 & 60 & 20 & 1.8 & 1.0 \\
+    \midrule
+    $ Y_i $ & 5.9 & 5.4 & 4.4 & 4.6 & 3.5 & 3.7 & 2.8 & 2.8 & 2.4 & 1.5 \\
+    $ \omega(Y_i) $ & 1 & 1.8 & 4 & 8 & 20 & 20 & 70 & 70 & 100 & 500 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Средние ошибки связаны с весами как $ σ(X_i) = 1 / \sqrt{\omega(X_i)} $ и $ σ(Y_i) = 1 / \sqrt{\omega(Y_i)} $.
+
+\vspace{\baselineskip}
+
+Метод Йорка: для $ k $-ой итерации по $ b $ при $ i = 1, \dots, N $ вычисляем
+
+\su
+\begin{equation}
+  W_i = \frac{\omega(X_i) \omega(Y_i)}{\omega(X_i) + b_k^2 \omega(Y_i)},
+\end{equation}
+
+\su
+\begin{equation}
+  \langle X \rangle = \frac{\sum W_i X_i}{\sum W_i}, \quad \langle Y \rangle = \frac{\sum W_i Y_i}{\sum W_i},
+\end{equation}
+
+\su
+\begin{equation}
+  U_i = X_i - \langle X \rangle, \quad V_i = Y_i - \langle Y \rangle.
+\end{equation}
+
+Для вычисления $ b_{k+1} $ можем использовать линейное уравнение
+
+\su
+\begin{equation}
+  b_{k+1} = \frac{\displaystyle \sum W_i^2 V_i \left( \frac{U_i}{\omega(Y_i)} + \frac{b_k V_i}{\omega(X_i)} \right)}{\displaystyle \sum W_i^2 U_i \left( \frac{U_i}{\omega(Y_i)} + \frac{b_k V_i}{\omega(X_i)} \right)}
+\end{equation}
+
+или кубическое уравнение:
+
+\su
+\begin{equation}
+  \alpha = \frac{\displaystyle 2 \sum \frac{W_i^2}{\omega(X_i)} U_i V_i}{\displaystyle 3 \sum \frac{W_i^2 U_i^2}{\omega(X_i)}}, \quad
+  \beta = \frac{\displaystyle \sum \frac{W_i^2 V_i^2}{\omega(X_i)} - \textstyle \sum W_i U_i^2}{\displaystyle 3 \sum \frac{W_i^2 U_i^2}{\omega(X_i)}}, \quad
+  \gamma = -\frac{\sum \displaystyle W_i U_i V_i}{\displaystyle \sum \frac{W_i^2 U_i^2}{\omega(X_i)}},
+\end{equation}
+
+\su
+\begin{equation}
+  b_{k+1} = \alpha + 2 \sqrt{\alpha^2 - \beta} \cos{\frac{\varphi + 4 \pi}{3}}, \quad \cos{\varphi} = \frac{\alpha^3 - \frac{3}{2} \alpha \beta + \frac{1}{2} \gamma}{(\alpha^2 - \beta)^{3/2}}.
+\end{equation}
+
+\newpage
+
+Расстояния до взвешенных проекций могут быть вычислены как
+
+\su
+\begin{equation}
+  x_i - X_i = -b \frac{W_i}{\omega(X_i)} (a + b X_i - Y_i), \quad
+  y_i - Y_i = \frac{W_i}{\omega(Y_i)} (a + b X_i - Y_i),
+\end{equation}
+
+а средние ошибки в значениях параметров --- как
+
+\su
+\begin{equation}
+  \sigma_b^2 = \frac{1}{N - 2} \frac{\sum W_i (b U_i - V_i)^2}{\sum W_i U_i^2}, \quad
+  \sigma_a^2 = \sigma_b^2 \frac{\sum W_i X_i^2}{\sum W_i}.
+\end{equation}
+
+Итерации начинаются с приблизительного значения $ b_0 $ и продолжаются вплоть до достижения необходимой точности.
+
+\vspace{\baselineskip}
+
+Метод численной оптимизации: по аналогии с методом наибольшего правдоподобия, ищем минимум функции
+
+\su
+\begin{equation}
+  L^{(1)}(a, b) = \frac{1}{2} \sum \min_{x_i} \left[ \omega(Y_i) (a + b x_i - Y_i)^2 + \omega(X_i) (x_i - X_i)^2 \right].
+\end{equation}
+
+\subsection*{Реализация}
+
+Результаты получены с помощью скрипта, написанного на языке программирования \href{https://julialang.org}{Julia}. Код расположен в GitHub репозитории \href{https://github.com/paveloom-university/Stellar-Astronomy-Special-Workshop-S11-2022}{Stellar Astronomy Special Workshop S11-2022}. Для воспроизведения результатов следуй инструкциям в файле {\footnotesize \texttt{README.md}}. \npar
+
+Для метода Йорка при $ b_0 = -0.5 $ при требуемой точности $ \varepsilon = 10^{-8} $ получаем следующие результаты:
+
+\input{iterations_linear.tex}
+\input{iterations_cubic.tex}
+
+\captionsetup{justification=centering}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[scale=0.69]{york}
+  \caption{Линия регрессии и проекции точек на неё}
+\end{figure}
+
+\newpage
+
+Для численной минимизации с начальными значениями $ a₀ = 6 $, $ b₀ = -0.5 $ с помощью метода Нелдера -- Мида получаем следующие результаты:
+
+\input{numerical.tex}
+
+\begin{figure}[h!]
+  \setlength{\imageheight}{5.96cm}
+  \centering
+  \subgraphics{a}
+  \subgraphics{b}
+  \caption{Профили параметров}
+\end{figure}
+
+Численная минимизация целевой функции оказывается более простым (не\-смотря на внутреннюю оптимизацию, это всего лишь одна функция), универсальным (множество методов разработаны для оптимизации любой функции) и точным (даже в случае применения не самых точных методов) подходом к вписыванию линейной модели для данных с весами. В свою очередь, как это часто случается, более общий подход приводит к меньшей производительности в зависимости от реализации (в данном случае, преимущественно в силу обилия сторонних выделений памяти пакетом \texttt{Optim.jl}). Разные вариации выборов начальных данных, методов оптимизации и их реализаций могут дать совершенно другие результаты, однако здесь метод Йорка оказывается по меньшей мере на порядок быстрее (скажем, сотые доли секунды вместо десятых для данной выборки на текущей машине).
+
+\end{document}

@@ -12,6 +12,7 @@ Repository:
 Make sure you have installed
 
 - [Julia](https://julialang.org)
+- [Tectonic](https://tectonic-typesetting.github.io)
 - TeX Live:
     - Packages (Fedora Linux):
         - `poppler-utils`
@@ -42,3 +43,11 @@ julia --project=. scripts/compute.jl --postfix "'Custom postfix'"
 Use the `--help` flag to get help information.
 
 To kill the daemon, run `./julia.bash kill`.
+
+#### Report
+
+To compile the report, run
+
+```bash
+tectonic -X compile report/report.tex
+```

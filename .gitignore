@@ -1,2 +1,7 @@
 # Plots
 plots
+
+# Report
+report/report.pdf
+report/*tex
+!report/report.tex

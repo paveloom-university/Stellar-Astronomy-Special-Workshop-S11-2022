@@ -68,6 +68,7 @@ I = Int64
 CURRENT_DIR = @__DIR__
 ROOT_DIR = basename(CURRENT_DIR) == "scripts" ? dirname(CURRENT_DIR) : CURRENT_DIR
 PLOTS_DIR = joinpath(ROOT_DIR, "plots")
+REPORT_DIR = joinpath(ROOT_DIR, "report")
 
 # Make sure the needed directories exist
 mkpath(PLOTS_DIR)
@@ -77,6 +78,7 @@ println('\n', " "^4, "> Loading the packages...")
 using LaTeXStrings
 using Optim
 using Plots
+using Printf
 using Roots
 
 # Use the PGFPlotsX backend for plots
@@ -120,6 +122,15 @@ The arguments here are the approximate value of `b` and
 the required precision.
 """
 function york(; b₀::F, ε::F, linear::Bool=false)::Tuple{F,F,F,F,Vector{F},Vector{F}}
+    # Number of digits to round the output to
+    digits = 9
+    # Print the header
+    if linear
+        println('\n', pad, pad, "Linear:")
+    else
+        println('\n', pad, pad, "Cubic:")
+    end
+    println('\n', pad, pad, pad, "b₀: ", b₀, '\n')
     # Start with the provided approximate value of `b`
     b = b₀
     b_prev = b₀ + 2ε
@@ -127,8 +138,35 @@ function york(; b₀::F, ε::F, linear::Bool=false)::Tuple{F,F,F,F,Vector{F},Vec
     # getting the results out of the loop
     a = σ_a = σ_b = 0
     x = y = similar(X)
+    # Store the iterations in a TeX file
+    io = open(
+        joinpath(
+            REPORT_DIR,
+            "iterations_" *
+            (linear ? "linear" : "cubic") *
+            ".tex"
+        ),
+        "w"
+    )
+    println(
+        io,
+        raw"""
+        \begin{table}[h]
+          \centering
+          \begin{tabular}{cccccc}
+            \toprule
+            $ i $ &
+            $ a $ &
+            $ σ_a $ &
+            $ b $ &
+            $ σ_b $ &
+            $ \sum $ \\
+            \midrule"""
+    )
     # Until the required precision is reached
+    i = 0
     while abs(b_prev - b) > ε
+        i += 1
         # Save the current `b` as the previous one
         b_prev = b
         # Compute the weights of each pair
@@ -167,7 +205,38 @@ function york(; b₀::F, ε::F, linear::Bool=false)::Tuple{F,F,F,F,Vector{F},Vec
         # Compute the coordinates of the projections
         x = @. X + -b * W / ω_X * (a + b * X - Y)
         y = @. Y + W / ω_Y * (a + b * X - Y)
+        # Compute the sum of weighted squared differences
+        ∑ = wsum(x, a, b)
+        # Print the results in this iteration
+        println(pad, pad, pad, "i: ", i)
+        println(pad, pad, pad, pad, "a: ", a, " ± ", σ_a)
+        println(pad, pad, pad, pad, "b: ", b, " ± ", σ_b)
+        println(pad, pad, pad, pad, "∑: ", ∑)
+        Printf.format(
+            io,
+            Printf.Format(
+                "    %d" *
+                repeat(" & %.$(digits)f", 5) *
+                " \\\\\n",
+            ),
+            i, a, σ_a, b, σ_b, ∑,
+        )
     end
+    # Close the file stream
+    println(
+        io,
+        raw"""
+            \bottomrule
+          \end{tabular}
+        """,
+        if linear
+            "  \\caption{Линейное уравнение}\n"
+        else
+            "  \\caption{Кубическое уравнение}\n"
+        end,
+        raw"\end{table}",
+    )
+    close(io)
     return (a, b, σ_a, σ_b, x, y)
 end
 
@@ -177,20 +246,7 @@ println(pad, "> Fitting the linear model using the D. York's method...")
 a_l, b_l, σ_a_l, σ_b_l, x_l, y_l = york(b₀=-0.5, ε=1e-8, linear=true)
 a_c, b_c, σ_a_c, σ_b_c, x_c, y_c = york(b₀=-0.5, ε=1e-8)
 
-# Compute the sums of the weighted squared differences
-∑_l = wsum(x_l, a_l, b_l)
-∑_c = wsum(x_c, a_c, b_c)
-
-println('\n', pad, pad, "Linear:")
-println(pad, pad, pad, "a: ", a_l, " ± ", σ_a_l)
-println(pad, pad, pad, "b: ", b_l, " ± ", σ_b_l)
-println(pad, pad, pad, "∑: ", ∑_l, '\n')
-println(pad, pad, "Cubic:")
-println(pad, pad, pad, "a: ", a_c, " ± ", σ_a_c)
-println(pad, pad, pad, "b: ", b_c, " ± ", σ_b_c)
-println(pad, pad, pad, "∑: ", ∑_c, '\n')
-
-println(pad, "> Plotting the results of the D. York's method...")
+println('\n', pad, "> Plotting the results of the D. York's method...")
 
 # Plot the data
 scatter(
@@ -219,7 +275,12 @@ scatter!(
     markerstrokewidth=0.1,
 )
 for (X, Y, x, y) in zip(X, Y, x_c, y_c)
-    plot!([X, x], [Y, y], linewidth=0.2)
+    plot!(
+        [X, x],
+        [Y, y],
+        linewidth=0.2,
+        color=palette(:default).colors[1],
+    )
 end
 
 # Save the figure
@@ -369,6 +430,41 @@ println(pad, pad, "b_left: ", b_left)
 println(pad, pad, "b_right: ", b_right)
 println(pad, pad, "σ_left: ", b_σ_left)
 println(pad, pad, "σ_right: ", b_σ_right, '\n')
+
+# Print the results to a TeX file
+open(joinpath(REPORT_DIR, "numerical.tex"), "w") do io
+    # Number of digits to round the output to
+    digits = 6
+    println(
+        io,
+        raw"""
+        \begin{table}[h]
+          \centering
+          \begin{tabular}{ccccccc}
+            \toprule
+            $ a $ &
+            $ σ_a^+ $ &
+            $ σ_a^- $ &
+            $ b $ &
+            $ σ_b^+ $ &
+            $ σ_b^- $ &
+            $ \sum $ \\
+            \midrule""",
+    )
+    Printf.format(
+        io,
+        Printf.Format("    %.$(digits)f" * repeat(" & %.$(digits)f", 6) * " \\\\\n"),
+        a_n, a_σ_right, a_σ_left, b_n, b_σ_right, b_σ_left, ∑_n
+    )
+    println(
+        io,
+        raw"""
+            \bottomrule
+          \end{tabular}
+        \end{table}
+        """
+    )
+end
 
 println(pad, "> Plotting the profiles...")
 
